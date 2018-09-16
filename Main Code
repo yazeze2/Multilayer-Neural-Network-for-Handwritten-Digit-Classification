@@ -1,0 +1,96 @@
+import random
+import struct
+import numpy as np
+import matplotlib.pyplot as plt
+plt.close ('all')
+
+
+# Read MINST data and return Training labels and images as well as testing images and labels
+def Read_MinstD():
+
+    import numpy as np
+    import struct
+    import matplotlib.pyplot as plt
+    
+    with open('./train-labels.idx1-ubyte', 'rb') as f_trL: #processing training labels
+        f_trL.seek(0)  # Go to beginning
+        magicL, nL = struct.unpack(">ii", f_trL.read(8))
+        L_Tr = np.fromfile(f_trL, dtype=np.int8)        
+        
+    with open('./train-images.idx3-ubyte', 'rb') as f_tr: #processing training images
+        magic, n, rows, cols = struct.unpack('>iiii', f_tr.read(16))
+        tr_im = np.fromfile(f_tr, np.uint8)
+        tr_im = tr_im.reshape(n,rows, cols)
+        
+    with open('./t10k-labels.idx1-ubyte', 'rb') as f_tsL:
+        magic_number, nTL = struct.unpack('>ii',f_tsL.read(8))        
+        L_Ts = np.fromfile(f_tsL, np.uint8)
+        
+    with open('./t10k-images.idx3-ubyte', 'rb') as f_ts:
+        magic_number, nTs, rows, cols = struct.unpack('>iiii', f_ts.read(16))
+        ts_im = np.fromfile(f_ts, np.uint8)
+        ts_im = ts_im.reshape(nTs,rows, cols)
+   
+    return tr_im, L_Tr, n,ts_im, L_Ts, nTs
+
+#Testing Function. It takes optimized weights from training
+def Testing(W):
+    
+    tr_im, L_Tr, n,ts_im, L_Ts, nTs = Read_MinstD()
+    
+    #Variables needed
+    MisC =0
+    V_Ts = np.zeros((10,1))
+    
+    for i in range(nTs):
+        X_Ts = np.ravel(ts_im[i])                
+        V_Ts = W.dot(X_Ts)
+        Idx_Ts = np.argmax(V_Ts)       
+        if L_Ts[i] != Idx_Ts:
+            MisC= MisC+1
+
+    Thresh = (MisC/float(nTs))*100
+    print("Error Percentage:",Thresh,"%")
+    print("Number of Misclassification:", MisC)
+
+#Variables needed
+Epoch =0
+eta = 3
+thresh =1
+W = np.random.uniform(-5, 5,7840)
+W = W.reshape(10,784)
+V = np.zeros((10,1))
+D = np.zeros((10,1))
+Error = np.zeros((50,1))
+N =60000
+
+tr_im, L_Tr, n,ts_im, L_Ts, nTs = Read_MinstD()
+
+while thresh > 0 and Epoch<50: 
+                
+    for j in range(N):
+        X = np.ravel(tr_im[j])
+        X= X.reshape(784,1)
+        V = W.dot(X)
+        V = V.reshape(10,1)
+        Idx = np.argmax(V)
+        if L_Tr[j] != Idx:
+            Error[Epoch]= Error[Epoch]+1
+        D = np.zeros((10,1))           
+        D[L_Tr[j]]= 1
+        Out = D - np.heaviside(V,0)
+        W = W+ eta*(Out.dot(X.T))
+       
+    thresh = Error[Epoch]/float(N);
+    Epoch = Epoch+1;
+
+y = Error[0:Epoch]
+z = np.arange(0,Epoch,1)
+plt.plot(z,y)
+plt.xlabel("Epoch#")
+plt.ylabel("Misclassification")
+plt.title("Misclassification vs Epoch#")
+plt.show()
+print (thresh)
+print (Epoch)
+Testing(W)
